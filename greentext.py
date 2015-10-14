@@ -7,6 +7,8 @@ import re
 import requests
 import time
 
+from requests.exceptions import ConnectionError, MissingSchema
+
 from StringIO import StringIO
 from PIL import Image, ImageEnhance
 from pytesseract import image_to_string
@@ -20,7 +22,7 @@ class Greentext(object):
     IMG_CONTRAST_FACTOR = 2.0
 
     MIN_LINES = 4
-    RATIO = 0.55
+    RATIO = 0.51
 
     def __init__(self, image=None):
         self.image = image
@@ -39,7 +41,7 @@ class Greentext(object):
             image = Image.open(StringIO(r.content))
             logger.debug('Downloaded image: {!r}'.format(image))
             return cls(image)
-        except:
+        except (MissingSchema, ConnectionError):
             logger.warn('Failed fetching URL {!r}'.format(url))
             return cls()
 
