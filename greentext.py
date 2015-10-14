@@ -5,24 +5,36 @@ from __future__ import unicode_literals, print_function
 import sys
 import logging
 import re
+import requests
 
-from PIL import Image, ImageOps  # noqa
-# from textblob import TextBlob  # noqa
+from StringIO import StringIO
+from PIL import Image, ImageEnhance
 from pytesseract import image_to_string
 
 
 logger = logging.getLogger(__name__)
 
 RESIZE_FACTOR = 4
+CONTRAST_FACTOR = 2.0
+
+
+def get_image(location):
+    try:
+        r = requests.get(location)
+        file = StringIO(r.content)
+    except requests.exceptions.MissingSchema:
+        file = location
+
+    return Image.open(file)
 
 
 def main(file, expected=None):
-    image = Image.open(file)
+    image = get_image(file)
     new_size = (p * RESIZE_FACTOR for p in image.size)
     image = image.resize(new_size, resample=Image.BILINEAR)
     image = image.convert('L')  # grayscale
-    # image = ImageOps.invert(image)
-    # image = image.filter(ImageFilter.SMOOTH_MORE)
+    max_contrast = ImageEnhance.Contrast(image)
+    image = max_contrast.enhance(CONTRAST_FACTOR)
     text = prettify(image_to_string(image).decode('utf-8'))
 
     if expected is None:
@@ -56,7 +68,8 @@ def get_topic(line):
 def prettify(text):
     """Prepare for markdown."""
     # replace common alternative '>' detections
-    text = text.replace(':=-', '>').replace('2:-', '>')
+    for arrow in [':=-', '2:-', 'r=-', 'I=-']:
+        text = text.replace(arrow, '>')
     lines = []
 
     for line in text.split('\n\n'):
