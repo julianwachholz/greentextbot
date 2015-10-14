@@ -2,6 +2,10 @@
 __pycache__/
 *.py[cod]
 
+config.json
+whitelist.txt
+blacklist.txt
+
 # C extensions
 *.so
 
