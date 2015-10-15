@@ -1,1 +1,1 @@
-reddit_bot
+reddit_bot==0.1.4

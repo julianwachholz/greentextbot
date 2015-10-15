@@ -40,6 +40,8 @@ class GreentextBot(RedditSubmissionBot, RedditMessageBot):
         ])
 
     def reply_submission(self, submission):
+        logger.info('Reply submission {!r} - {:.40}'.format(
+                    submission.id, submission.title))
         url = self.get_image_url(submission)
         if not url:
             return False
@@ -83,8 +85,6 @@ class GreentextBot(RedditSubmissionBot, RedditMessageBot):
         for submission_id in submission_ids:
             submission = self.r.get_info(thing_id='t3_{}'.format(submission_id))
             if isinstance(submission, Submission):
-                logger.info('Checking {!r} - {:.40}'.format(
-                            submission_id, submission.title))
                 if subreddit and submission.subreddit.display_name != subreddit:
                     reply = 'Submission not in your sub'
                 elif self.is_valid_submission(submission):

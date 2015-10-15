@@ -144,7 +144,7 @@ class Greentext(object):
             if self._is_post_separator(part):
                 topic = part.split('Anonymous')[0]
                 if len(topic) > 6:
-                    return '**{}**'.format(topic)
+                    return '**{}**'.format(topic.strip())
 
     def _verify_greentext(self, greentext):
         """Make sure we have an actual greentext post."""
