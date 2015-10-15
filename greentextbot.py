@@ -15,12 +15,13 @@ from greentext import Greentext
 logger = logging.getLogger(__name__)
 
 
-REPLY_INFO = '\n\n---\n[^(I\'m a bot)](#info "v{} - {{}}")'
+REPLY_INFO = ('\n\n---\n[^(I\'m a bot)](/message/compose/?to=_greentext_'
+              '&subject=feedback "v{} - {{}}")')
 
 
 class GreentextBot(RedditSubmissionBot, RedditMessageBot):
 
-    VERSION = (0, 1, 1)
+    VERSION = (0, 1, 2)
 
     VALID_DOMAINS = [
         'imgur.com',
