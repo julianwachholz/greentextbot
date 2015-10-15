@@ -6,7 +6,7 @@ import logging
 import time
 
 from praw.errors import RateLimitExceeded
-from praw.objects import Submission
+from praw.objects import Submission, Comment
 
 from reddit_bot import RedditSubmissionBot, RedditMessageBot
 from greentext import Greentext
@@ -15,12 +15,12 @@ from greentext import Greentext
 logger = logging.getLogger(__name__)
 
 
-REPLY_INFO = '\n---\n[^(Bitch I\'m a bot)](#info "v{}")'
+REPLY_INFO = '\n\n---\n[^(I\'m a bot)](#info "v{} - {{}}")'
 
 
 class GreentextBot(RedditSubmissionBot, RedditMessageBot):
 
-    VERSION = (0, 0, 1)
+    VERSION = (0, 1, 1)
 
     VALID_DOMAINS = [
         'imgur.com',
@@ -51,7 +51,7 @@ class GreentextBot(RedditSubmissionBot, RedditMessageBot):
 
         logger.info('Replying to {}'.format(submission.id))
         reply_text = g.get_greentext()
-        reply_text += self.reply_info
+        reply_text += self.reply_info.format(g.get_times())
         return submission.add_comment(reply_text)
 
     def get_image_url(self, submission):
@@ -60,15 +60,23 @@ class GreentextBot(RedditSubmissionBot, RedditMessageBot):
         if submission.domain == 'i.imgur.com':
             return url
 
-        if re.match(r'https?://imgur\.com/a/', url):
+        # does not match album or imgur-subreddit links
+        match = re.match(r'^https?://imgur\.com/([a-z0-9]{6,9})$', url, flags=re.I)
+        if not match:
             return False
+        return 'http://i.imgur.com/{}.png'.format(match.group(1))
 
-        return '{}.png'.format(url)
+    def on_subreddit_message(self, subreddit, message):
+        if message.subject.lower() != 'check':
+            return
+        self._manual_check(message, subreddit)
 
     def on_admin_message(self, message):
-        if message.subject != 'check':
+        if message.subject.lower() != 'check':
             return
+        self._manual_check(message)
 
+    def _manual_check(self, message, subreddit=None):
         checked = []
         submission_ids = map(lambda s: s.strip(), message.body.split('\n'))
 
@@ -77,7 +85,9 @@ class GreentextBot(RedditSubmissionBot, RedditMessageBot):
             if isinstance(submission, Submission):
                 logger.info('Checking {!r} - {:.40}'.format(
                             submission_id, submission.title))
-                if self.is_valid_submission(submission):
+                if subreddit and submission.subreddit.display_name != subreddit:
+                    reply = 'Submission not in your sub'
+                elif self.is_valid_submission(submission):
                     try:
                         reply = self.reply_submission(submission)
                     except RateLimitExceeded as e:
@@ -98,8 +108,10 @@ class GreentextBot(RedditSubmissionBot, RedditMessageBot):
         text = "Checked the following submissions:\n\n"
         for submission, reply in checked:
             text += '\n- [{:.30}]({}): '.format(submission.title, submission.permalink)
-            if reply:
+            if isinstance(reply, Comment):
                 text += '[**my reply**]({})'.format(reply.permalink)
+            elif reply:
+                text += reply
             else:
                 text += '*not replied*'
 

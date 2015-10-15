@@ -24,23 +24,34 @@ class Greentext(object):
     MIN_LINES = 4
     RATIO = 0.51
 
-    def __init__(self, image=None):
+    def __init__(self, image=None, start_time=None, download_time=None):
         self.image = image
         self.raw_text = None
         self.greentext = None
+
+        self.start_time = start_time
+        self.download_time = download_time
+        self.enhance_time = 0
+        self.parse_time = 0
+        self.total_time = 0
 
         if self.image:
             self._enhance_image()
             self._parse_greentext()
 
+        if self.start_time:
+            self.total_time = time.time() - self.start_time
+
     @classmethod
     def from_url(cls, url):
         logger.debug('Trying to fetch {!r}'.format(url))
+        start_time = time.time()
         try:
             r = requests.get(url)
             image = Image.open(StringIO(r.content))
             logger.debug('Downloaded image: {!r}'.format(image))
-            return cls(image)
+            download_time = time.time() - start_time
+            return cls(image, start_time, download_time)
         except (MissingSchema, ConnectionError):
             logger.warn('Failed fetching URL {!r}'.format(url))
             return cls()
@@ -64,6 +75,15 @@ class Greentext(object):
     def get_greentext(self):
         return self.greentext
 
+    def get_times(self):
+        info = '{total:.3}s ({download:.5}/{enhance:.5}/{parse:.5})'
+        return info.format(
+            total=self.total_time,
+            download=self.download_time,
+            enhance=self.enhance_time,
+            parse=self.parse_time
+        )
+
     def _enhance_image(self):
         start_time = time.time()
 
@@ -73,14 +93,15 @@ class Greentext(object):
         max_contrast = ImageEnhance.Contrast(image)
         image = max_contrast.enhance(Greentext.IMG_CONTRAST_FACTOR)
 
-        logger.info('Enhanced image in {!r}s'.format(time.time() - start_time))
+        self.enhance_time = time.time() - start_time
+        logger.info('Enhanced image in {!r}s'.format(self.enhance_time))
         self.image = image
 
     def _parse_greentext(self):
         start_time = time.time()
         self.raw_text = image_to_string(self.image).decode('utf-8')
-
-        logger.info('OCR took {!r}s'.format(time.time() - start_time))
+        self.parse_time = time.time() - start_time
+        logger.info('OCR took {!r}s'.format(self.parse_time))
         greentext = self._format_greentext(self.raw_text)
 
         if self._verify_greentext(greentext):
