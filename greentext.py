@@ -22,7 +22,7 @@ class Greentext(object):
     IMG_CONTRAST_FACTOR = 2.0
 
     MIN_LINES = 4
-    RATIO = 0.51
+    RATIO = 0.5
 
     def __init__(self, image=None, start_time=None, download_time=None):
         self.image = image
@@ -114,7 +114,10 @@ class Greentext(object):
             raw_text = raw_text.replace(arrow, '>')
         lines = []
 
-        for line in raw_text.split('\n\n'):
+        previous_empty = False
+        previous_quote = False
+
+        for line in raw_text.split('\n'):
             if self._is_post_separator(line):
                 if len(lines):
                     lines.append('---')
@@ -122,14 +125,27 @@ class Greentext(object):
                     lines.append(self._get_topic(line))
                 continue
 
-            if re.match(r'^[\W]*>', line, flags=re.M):
-                line = re.sub(r'^([^\w]>)', '>', line, flags=re.M)
+            line = re.sub(r'^([^\w]*?>|:)', '>', line, flags=re.M)
 
-            if len(lines) and not line[0] == '>' \
-                    or len(lines) > 0 and line[0] == '>' and lines[-1][0] != '>':
+            if not line:
+                previous_empty = True
+            elif line[0] == '>':
+                if not previous_empty and not previous_quote:
+                    lines.append('')
+
+                prepend = '\\' if previous_quote else ''
+                lines.append(prepend + line)
+                previous_quote = True
+                previous_empty = False
+            elif previous_quote and not previous_empty:
+                lines[-1] += ' ' + line
+                previous_empty = False
+            else:
                 lines.append('')
+                lines.append(line)
+                previous_quote = False
+                previous_empty = False
 
-            lines.append(line)
         return '  \n'.join('\n'.join(lines).strip('-').split('\n'))
 
     def _is_post_separator(self, line):
@@ -153,7 +169,8 @@ class Greentext(object):
             assert len(lines) > Greentext.MIN_LINES, (
                 'Not enough lines (min: {}, got: {})'.format(Greentext.MIN_LINES, len(lines)))
 
-            ratio = len(filter(lambda line: line.startswith('>'), lines)) / len(lines)
+            ratio_filter = lambda l: l.startswith('>') or l.startswith('\\>')
+            ratio = len(filter(ratio_filter, lines)) / len(lines)
             assert ratio > Greentext.RATIO, (
                 'Quote ratio too low: (min: {}, got: {})'.format(Greentext.RATIO, ratio))
         except AssertionError as e:
@@ -163,7 +180,7 @@ class Greentext(object):
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level='DEBUG')
+    logging.basicConfig(level='INFO')
 
     if len(sys.argv) < 2:
         sys.stderr.write('Usage: {} <file>\n'.format(sys.argv[0]))
@@ -172,6 +189,7 @@ if __name__ == '__main__':
     g = Greentext.from_file(sys.argv[1])
 
     if g.has_greentext():
+        print('')
         print(g.get_greentext())
     else:
         print("No greentext found.")
