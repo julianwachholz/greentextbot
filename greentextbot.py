@@ -30,6 +30,7 @@ class GreentextBot(RedditSubmissionBot, RedditMessageBot):
 
     def bot_start(self):
         super(GreentextBot, self).bot_start()
+        self.done = []
         self.reply_info = REPLY_INFO.format('.'.join(map(str, self.VERSION)))
 
     def is_valid_submission(self, submission):
@@ -38,6 +39,7 @@ class GreentextBot(RedditSubmissionBot, RedditMessageBot):
             not submission.stickied,
             submission.distinguished != 'moderator',
             submission.domain in self.VALID_DOMAINS,
+            submission.id not in self.done,
         ])
 
     def reply_submission(self, submission):
@@ -53,9 +55,15 @@ class GreentextBot(RedditSubmissionBot, RedditMessageBot):
             return False
 
         logger.info('Replying to {}'.format(submission.id))
+        self.append_done(submission.id)
         reply_text = g.get_greentext()
         reply_text += self.reply_info.format(g.get_times())
         return submission.add_comment(reply_text)
+
+    def append_done(self, submission_id):
+        self.done.append(submission_id)
+        if len(self.done) > 100:
+            self.done = self.done[1:]
 
     def get_image_url(self, submission):
         url = submission.url

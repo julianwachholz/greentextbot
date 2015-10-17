@@ -22,7 +22,7 @@ class Greentext(object):
     IMG_CONTRAST_FACTOR = 2.0
 
     MIN_LINES = 4
-    RATIO = 0.5
+    RATIO = 0.4
 
     def __init__(self, image=None, start_time=None, download_time=None):
         self.image = image
