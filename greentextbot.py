@@ -21,12 +21,14 @@ REPLY_INFO = ('\n\n---\n[^(I\'m a bot)](/message/compose/?to=_greentext_'
 
 class GreentextBot(RedditSubmissionBot, RedditMessageBot):
 
-    VERSION = (0, 1, 2)
+    VERSION = (0, 2, 0)
 
     VALID_DOMAINS = [
         'imgur.com',
         'i.imgur.com',
     ]
+
+    MAX_LENGTH = 10000
 
     def bot_start(self):
         super(GreentextBot, self).bot_start()
@@ -43,7 +45,7 @@ class GreentextBot(RedditSubmissionBot, RedditMessageBot):
         ])
 
     def reply_submission(self, submission):
-        logger.info('Reply submission {!r} - {:.40}'.format(
+        logger.info('Submission {!r} - {:.40}'.format(
                     submission.id, submission.title))
         url = self.get_image_url(submission)
         if not url:
@@ -56,9 +58,37 @@ class GreentextBot(RedditSubmissionBot, RedditMessageBot):
 
         logger.info('Replying to {}'.format(submission.id))
         self.append_done(submission.id)
+        return self._do_reply(submission, g)
+
+    def _do_reply(self, submission, g):
+        """Reply to the submission with reply_text.
+
+        Split into multiple comments when we found more
+        than one post.
+
+        Returns the first comment created.
+
+        """
         reply_text = g.get_greentext()
-        reply_text += self.reply_info.format(g.get_times())
-        return submission.add_comment(reply_text)
+
+        if len(reply_text) > self.MAX_LENGTH / 10:
+            posts = map(lambda s: s.strip(), reply_text.split('---'))
+        else:
+            posts = [reply_text]
+
+        replies = []
+        reply_info = self.reply_info.format(g.get_times())
+        comment_func = submission.add_comment
+
+        for post in posts:
+            if len(post + reply_info) > self.MAX_LENGTH:
+                return False
+
+            comment = comment_func(post + reply_info)
+            comment_func = comment.reply
+            replies.append(comment)
+
+        return replies[0]
 
     def append_done(self, submission_id):
         self.done.append(submission_id)

@@ -76,7 +76,7 @@ class Greentext(object):
         return self.greentext
 
     def get_times(self):
-        info = '{total:.3}s ({download:.5}/{enhance:.5}/{parse:.5})'
+        info = '{total:.3}s (dl: {download:.4}/prep: {enhance:.4}/ocr: {parse:.4})'
         return info.format(
             total=self.total_time,
             download=self.download_time,
@@ -120,6 +120,7 @@ class Greentext(object):
         for line in raw_text.split('\n'):
             if self._is_post_separator(line):
                 if len(lines):
+                    lines.append('')
                     lines.append('---')
                 elif self._get_topic(line):
                     lines.append(self._get_topic(line))
