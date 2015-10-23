@@ -141,7 +141,7 @@ class GreentextBot(RedditSubmissionBot, RedditMessageBot):
                     reply = None
                 checked.append((submission, reply))
             else:
-                logger.warn('Got something other than a submission: {!r} - {!r}'.format(
+                logger.warning('Got something other than a submission: {!r} - {!r}'.format(
                             submission_id, submission))
 
         text = "Checked the following submissions:\n\n"

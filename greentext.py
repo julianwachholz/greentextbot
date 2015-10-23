@@ -1,15 +1,12 @@
-# -*- encoding: utf-8 -*-
-from __future__ import unicode_literals, print_function, division
-
 import sys
 import logging
 import re
 import requests
 import time
+from io import BytesIO
 
 from requests.exceptions import ConnectionError, MissingSchema
 
-from StringIO import StringIO
 from PIL import Image, ImageEnhance
 from pytesseract import image_to_string
 
@@ -51,16 +48,16 @@ class Greentext(object):
             assert r.status_code == 200, 'Got non-200 OK response.'
             assert r.headers['Content-Type'].split('/')[0] == 'image', (
                 'Content-Type does not look like image.')
-            image = Image.open(StringIO(r.content))
+            image = Image.open(BytesIO(r.content))
             logger.debug('Downloaded image: {!r}'.format(image))
             download_time = time.time() - start_time
             return cls(image, start_time, download_time)
         except AssertionError as e:
-            logger.warn('AssertionError: {}'.format(e))
+            logger.warning('AssertionError: {}'.format(e))
         except IOError as e:
-            logger.warn('Failed opening image: {}'.format(e))
+            logger.warning('Failed opening image: {}'.format(e))
         except (MissingSchema, ConnectionError):
-            logger.warn('Failed fetching URL {!r}'.format(url))
+            logger.warning('Failed fetching URL {!r}'.format(url))
         return cls()
 
     @classmethod
@@ -106,7 +103,7 @@ class Greentext(object):
 
     def _parse_greentext(self):
         start_time = time.time()
-        self.raw_text = image_to_string(self.image).decode('utf-8')
+        self.raw_text = image_to_string(self.image)
         self.parse_time = time.time() - start_time
         logger.info('OCR took {!r}s'.format(self.parse_time))
         greentext = self._format_greentext(self.raw_text)
@@ -178,11 +175,12 @@ class Greentext(object):
                 'Not enough lines (min: {}, got: {})'.format(Greentext.MIN_LINES, len(lines)))
 
             ratio_filter = lambda l: l.startswith('>') or l.startswith('\\>')
-            ratio = len(filter(ratio_filter, lines)) / len(lines)
+            greentext_lines = [l for l in lines if ratio_filter(l)]
+            ratio = len(greentext_lines) / len(lines)
             assert ratio > Greentext.RATIO, (
                 'Quote ratio too low: (min: {}, got: {})'.format(Greentext.RATIO, ratio))
         except AssertionError as e:
-            logger.warn('Invalid greentext: {}'.format(e))
+            logger.warning('Invalid greentext: {}'.format(e))
             return False
         return True
 
