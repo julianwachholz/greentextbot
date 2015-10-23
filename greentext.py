@@ -48,13 +48,20 @@ class Greentext(object):
         start_time = time.time()
         try:
             r = requests.get(url)
+            assert r.status_code == 200, 'Got non-200 OK response.'
+            assert r.headers['Content-Type'].split('/')[0] == 'image', (
+                'Content-Type does not look like image.')
             image = Image.open(StringIO(r.content))
             logger.debug('Downloaded image: {!r}'.format(image))
             download_time = time.time() - start_time
             return cls(image, start_time, download_time)
+        except AssertionError as e:
+            logger.warn('AssertionError: {}'.format(e))
+        except IOError as e:
+            logger.warn('Failed opening image: {}'.format(e))
         except (MissingSchema, ConnectionError):
             logger.warn('Failed fetching URL {!r}'.format(url))
-            return cls()
+        return cls()
 
     @classmethod
     def from_file(cls, filename):
